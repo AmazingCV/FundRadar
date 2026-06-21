@@ -149,7 +149,7 @@ def build_v4_feature_store() -> V4FeatureStore:
         + _score_rank(features["主题覆盖率%"]) * 0.20
         + _score_rank(features["V3主题权重%"]) * 0.20
     )
-    features["数据口径"] = "V1主题统计 + V3目标仓位 + V3_tracker历史记录；ETF资金流/成交额未直接接入，使用主题暴露迁移代理"
+    features["数据口径"] = "V1主题统计 + V3目标仓位 + V3_tracker历史记录；ETF资金流/成交额未直接接入，仅使用主题暴露迁移代理"
     return V4FeatureStore(
         as_of=today_str(),
         v1_report=v1,
@@ -157,5 +157,5 @@ def build_v4_feature_store() -> V4FeatureStore:
         tracker_dir=tracker,
         theme_features=features.sort_values("主题强度分", ascending=False).reset_index(drop=True),
         portfolio_log=portfolio_log,
-        source_note="只读使用 V1/V3/V3_tracker 输出，不改上游逻辑；资金流为主题暴露迁移代理，不代表真实交易所资金流。",
+        source_note="只读使用 V1/V3/V3_tracker 输出，不改上游逻辑；主题暴露变化为代理指标，不代表真实交易所资金流。",
     )

@@ -34,7 +34,7 @@ def build_flow_report(features: pd.DataFrame, config: V4Config | None = None) ->
         + _rank_score(-df["基金数量变化"]) * config.fund_count_weight
         + _rank_score(df["主题强度分"]) * 0.25
     )
-    df["资金流口径"] = "主题暴露迁移代理，不是ETF真实资金流"
+    df["主题暴露口径"] = "主题暴露迁移代理，不是ETF真实资金流"
     inflow = df[df["主题权重变化%"].gt(0) | df["基金数量变化"].gt(0)].sort_values("主题暴露流入分", ascending=False).head(config.top_n).reset_index(drop=True)
     outflow = df[df["主题权重变化%"].lt(0) | df["基金数量变化"].lt(0)].sort_values("主题暴露流出分", ascending=False).head(config.top_n).reset_index(drop=True)
     return inflow, outflow

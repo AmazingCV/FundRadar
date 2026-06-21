@@ -11,7 +11,7 @@ from fund_radar.v4.v4_radar import run_v4_full
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run FundRadar V4 flow report")
+    parser = argparse.ArgumentParser(description="Run FundRadar V4 theme exposure report")
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
     result = run_v4_full(limit=args.limit)

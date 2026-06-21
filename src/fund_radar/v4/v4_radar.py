@@ -35,13 +35,13 @@ def run_v4_full(limit: int | None = None, output_dir: str | Path | None = None) 
             {"来源": "口径说明", "路径": store.source_note},
         ]
     )
-    flow_in_sheet = "热钱流入榜" if has_flow_change else "首期主题强度基准榜"
+    flow_in_sheet = "主题暴露增强榜" if has_flow_change else "首期主题强度基准榜"
     flow_out = outflow.head(config.top_n) if has_flow_change else pd.DataFrame([{"说明": "首期基准快照或暂无历史主题暴露变化，暂无流出证据"}])
     flow_path = write_excel(
         out_dir / "flow_report.xlsx",
         {
             flow_in_sheet: inflow.head(config.top_n),
-            "热钱流出榜": flow_out,
+            "主题暴露减弱榜": flow_out,
             "unmapped_exposure": unmapped,
             "主题特征": features,
             "数据来源": source,
@@ -63,7 +63,7 @@ def run_v4_full(limit: int | None = None, output_dir: str | Path | None = None) 
         {
             "轮动机会榜": rotation_sheet,
             flow_in_sheet: inflow.head(config.top_n),
-            "热钱流出榜": flow_out,
+            "主题暴露减弱榜": flow_out,
             "验证说明": validation,
         },
     )
@@ -73,16 +73,16 @@ def run_v4_full(limit: int | None = None, output_dir: str | Path | None = None) 
     outflow_text = "暂无流出证据。" if not has_flow_change else outflow.head(config.top_n)
     summary_path = write_markdown(
         out_dir / "v4_summary.md",
-        "FundRadar V4 资金驱动系统",
+        "FundRadar V4 主题暴露与拥挤度观察层",
         {
             "定位": "V4 是资金行为分析层，只读 V1/V3/V3_tracker 输出，不改上游逻辑，不预测收益，不是荐基工具，不直接用收益预测作为信号。",
-            "当前运行口径": "当前没有直接接入 ETF 行业资金流和成交额；资金流仅为主题暴露迁移/主线强度迁移代理。首期记录不足时不能判断真实轮动。",
+            "当前运行口径": "当前没有直接接入 ETF 行业资金流和成交额；本报告只使用主题暴露迁移/主线强度迁移代理。首期记录不足时不能判断真实轮动。",
             flow_heading: flow_text,
             "主题暴露流出证据": outflow_text,
             "哪里已经过热": high.head(config.top_n),
             "下一轮可能切哪里": rotation.head(config.top_n) if not rotation.empty else "当前是首期基准快照或暂无历史主题暴露变化，暂无明确轮动路径。",
             "未映射主题仓位": f"当前 V3 有 {unmapped_weight:.2f}% 仓位未映射到明确主题，不参与主题榜单和轮动判断。",
-            "重要口径": "当前 ETF行业资金流/成交额未直接接入，资金流为主题暴露迁移代理，不代表真实交易所资金流。",
+            "重要口径": "当前 ETF行业资金流/成交额未直接接入；主题暴露变化只是代理指标，不代表真实交易所资金流。",
             "数据来源": source,
         },
     )

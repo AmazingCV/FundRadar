@@ -10,7 +10,7 @@ import _bootstrap  # noqa: F401
 import pandas as pd
 
 from fund_radar.report import write_excel, write_markdown
-from fund_radar.utils import ensure_dir, project_path
+from fund_radar.utils import ensure_dir, normalize_code, project_path
 
 
 def _read_sheet(path: Path, sheet_name: str) -> pd.DataFrame:
@@ -39,19 +39,41 @@ def _first_theme(df: pd.DataFrame, limit: int = 3) -> str:
     return "、".join(values)
 
 
+def _normalize_fund_name(name: str) -> str:
+    text = str(name or "").strip()
+    for suffix in ["A类", "C类", "I类", "E类", "A", "C", "I", "E"]:
+        if text.endswith(suffix):
+            return text[: -len(suffix)].strip()
+    return text
+
+
+def _share_priority(name: str) -> int:
+    text = str(name or "").strip().upper()
+    if text.endswith("A") or text.endswith("A类"):
+        return 0
+    if text.endswith("C") or text.endswith("C类"):
+        return 1
+    return 2
+
+
 def _fund_sample(df: pd.DataFrame, limit: int = 3) -> str:
     if df.empty:
         return ""
     code_col = next((c for c in df.columns if "代码" in str(c)), None)
     name_col = next((c for c in df.columns if "名称" in str(c)), None)
-    out: list[str] = []
-    for _, row in df.head(limit).iterrows():
-        code = str(row.get(code_col, "")).split(".")[0].zfill(6) if code_col else ""
+    merged: dict[str, tuple[int, int, str]] = {}
+    scan = df.head(max(limit * 5, limit))
+    for idx, (_, row) in enumerate(scan.iterrows()):
+        code = normalize_code(row.get(code_col, "")) if code_col else ""
         name = str(row.get(name_col, "")).strip() if name_col else ""
+        key = _normalize_fund_name(name) or code
         text = f"{code} {name}".strip()
-        if text:
-            out.append(text)
-    return "；".join(out)
+        priority = _share_priority(name)
+        old = merged.get(key)
+        if text and (old is None or (priority, idx) < (old[0], old[1])):
+            merged[key] = (priority, idx, text)
+    selected = sorted(merged.values(), key=lambda item: item[1])[:limit]
+    return "；".join(item[2] for item in selected)
 
 
 def _rotation_evidence(df: pd.DataFrame) -> str:
