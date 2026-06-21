@@ -34,12 +34,12 @@ def _latest(paths: list[Path]) -> Path | None:
 
 def latest_v1_report() -> Path | None:
     root = project_path("reports")
-    candidates = [p for p in root.glob("20*/20*/基金雷达扫描结果.xlsx") if "time_machine" not in p.parts]
+    candidates = [p for p in root.rglob("基金雷达扫描结果.xlsx") if "time_machine" not in p.parts and not p.name.startswith("~$")]
     return _latest(candidates)
 
 
 def latest_short_report() -> Path | None:
-    return _latest(list(project_path("reports").glob("20*/短期异动雷达.xlsx")))
+    return _latest([p for p in project_path("reports").rglob("短期异动雷达.xlsx") if not p.name.startswith("~$")])
 
 
 def latest_v2_report() -> Path | None:
@@ -124,4 +124,3 @@ def load_v3_signals(v1_report: str | Path | None = None, short_report: str | Pat
         v2_conclusion=v2_conclusion,
         fund_theme=fund_theme,
     )
-

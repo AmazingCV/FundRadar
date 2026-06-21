@@ -166,7 +166,7 @@ def market_scan(
     logger = logger or setup_logging(log_dir=config.get("project", {}).get("log_root", "data/reports"))
     loader = DataLoader(config, logger)
     as_of = as_of or today_str()
-    out_dir = ensure_dir(output_dir or month_dir("reports", as_of) / as_of)
+    out_dir = ensure_dir(output_dir or project_path("reports", "v1_market", as_of))
     chart_dir = ensure_dir(out_dir / "charts")
     pool = build_candidate_pool(config, loader, logger, limit=limit)
     logger.info("natural candidate pool: %s", len(pool))

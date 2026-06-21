@@ -121,23 +121,27 @@ python scripts/run_v3_full.py --limit 800
 
 ## 输出
 
-- `reports/stage_return_compare/<日期>/阶段收益对比.xlsx`
-- `reports/<月份>/<日期>/基金雷达扫描结果.xlsx`
-- `reports/<月份>/<日期>/分析摘要.md`
-- `reports/time_machine/<历史日期>/历史时点观察池.xlsx`
-- `reports/time_machine/<历史日期>/历史时点分析报告.md`
-- `reports/<日期>/短期异动雷达.xlsx`
-- `reports/short_term_weight_search/短期权重搜索结果.xlsx`
-- `reports/v2_lite/<日期>/V2验证报告.xlsx`
-- `reports/v3/<日期>/portfolio_allocation.xlsx`
-- `reports/v3/<日期>/dca_plan.xlsx`
-- `reports/v3/<日期>/exit_plan.xlsx`
-- `reports/v3/<日期>/rotation_signal.xlsx`
-- `reports/v3/<日期>/V3_backtest.xlsx`
-- `reports/v3/<日期>/v3_summary.md`
-- `reports/backtest/<区间>/基金雷达历史回测结果.xlsx`
-- `reports/weight_search/<区间>/权重搜索结果.xlsx`
-- `data/cache/` 保存接口缓存，`data/snapshots/` 保存连续跟踪快照。
+日常优先查看：
+
+- `reports/daily/YYYY-MM-DD/daily_report.md`
+- `reports/daily/YYYY-MM-DD/daily_report.xlsx`
+- `reports/health/YYYY-MM-DD/health_report.md`
+- `reports/daily/index.md`
+
+日常执行和观察层输出：
+
+- `reports/v1_market/YYYY-MM-DD/基金雷达扫描结果.xlsx`
+- `reports/v1_1_short_term/YYYY-MM-DD/短期异动雷达.xlsx`
+- `reports/v3/YYYY-MM-DD/`
+- `reports/v3_tracker/YYYY-MM/`
+- `reports/v4/YYYY-MM-DD/`
+
+研究和历史验证输出归档在：
+
+- `reports/research/`：回测、时间机器、权重搜索、阶段收益对比等低频研究报告
+- `reports/legacy/`：早期旧目录结构的历史输出
+
+详细说明见 `docs/报告目录说明.md`。`reports/`、`data/cache/`、`logs/` 和 Excel/CSV/Pickle/Parquet 生成物均不进入 Git。
 
 ## 核心限制
 

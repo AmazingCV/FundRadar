@@ -14,6 +14,7 @@ pytest-cache-files-*/
 .DS_Store
 .ipynb_checkpoints/
 /Untitled24.ipynb
+notebooks/archive/
 *.xlsx
 *.xls
 *.csv

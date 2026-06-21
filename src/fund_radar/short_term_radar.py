@@ -614,7 +614,7 @@ def run_short_term_radar(
     top_n = int(top_n or config.get("short_term_radar", {}).get("top_n", 50))
     lookbacks = parse_lookbacks(lookback_text)
     horizons = parse_verify_horizons(verify_horizon_text)
-    out_dir = ensure_dir(output_dir or project_path("reports", as_of))
+    out_dir = ensure_dir(output_dir or project_path("reports", "v1_1_short_term", as_of))
     chart_dir = ensure_dir(out_dir / "charts")
 
     pool = build_candidate_pool(config, loader, logger, limit=limit)

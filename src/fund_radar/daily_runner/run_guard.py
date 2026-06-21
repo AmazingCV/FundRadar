@@ -133,8 +133,8 @@ def tracker_recorded(as_of: str) -> bool:
 def step_output_path(step: str, as_of: str) -> Path | None:
     month = _month_text(as_of)
     exact_paths = {
-        "market_scan": project_path("reports", month, as_of, "基金雷达扫描结果.xlsx"),
-        "short_term_radar": project_path("reports", as_of, "短期异动雷达.xlsx"),
+        "market_scan": project_path("reports", "v1_market", as_of, "基金雷达扫描结果.xlsx"),
+        "short_term_radar": project_path("reports", "v1_1_short_term", as_of, "短期异动雷达.xlsx"),
         "v3_full": project_path("reports", "v3", as_of, "v3_summary.md"),
         "v3_tracker": project_path("reports", "v3_tracker", month, "daily_log.xlsx"),
         "v4_full": project_path("reports", "v4", as_of, "v4_summary.md"),

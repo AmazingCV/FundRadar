@@ -137,7 +137,7 @@ def _market_return(summary: pd.DataFrame, horizon: str) -> float:
 def run_v3_backtest(config: V3Config | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     config = config or default_v3_config()
     rows = []
-    reports = sorted(project_path("reports", "time_machine").glob("20*/历史时点观察池.xlsx"))
+    reports = sorted(project_path("reports").rglob("历史时点观察池.xlsx"))
     rng = np.random.default_rng(config.random_seed)
     for path in reports:
         as_of = path.parent.name

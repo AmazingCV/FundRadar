@@ -24,7 +24,7 @@ def _latest(paths: list[Path]) -> Path | None:
 
 
 def latest_v1_report() -> Path | None:
-    candidates = [p for p in project_path("reports").glob("20*/20*/基金雷达扫描结果.xlsx") if "time_machine" not in p.parts and not p.name.startswith("~$")]
+    candidates = [p for p in project_path("reports").rglob("基金雷达扫描结果.xlsx") if "time_machine" not in p.parts and not p.name.startswith("~$")]
     return _latest(candidates)
 
 
