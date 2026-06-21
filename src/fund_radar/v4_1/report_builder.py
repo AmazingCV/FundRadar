@@ -6,6 +6,7 @@ import pandas as pd
 
 from ..report import write_excel, write_markdown
 from ..utils import ensure_dir, project_path
+from .change_summary import build_change_summary
 from .display_utils import deduplicate_fund_display, format_fund_codes
 from .signal_aggregator import DailySignals
 from .trend_summary import build_morning_brief, build_structural_notes
@@ -20,9 +21,11 @@ def _sheet(df: pd.DataFrame, dedup: bool = False) -> pd.DataFrame:
 def build_daily_excel(signals: DailySignals, output_dir: str | Path) -> Path:
     out_dir = ensure_dir(output_dir)
     brief = build_morning_brief(signals)
+    changes = build_change_summary(signals)
     notes = build_structural_notes(signals)
     sheets = {
         "晨报摘要": brief,
+        "变化摘要": changes,
         "主线状态": _sheet(signals.core_themes),
         "次级扩散方向": _sheet(signals.secondary_themes),
         "拥挤风险": _sheet(signals.crowding_high),
@@ -48,10 +51,12 @@ def build_daily_excel(signals: DailySignals, output_dir: str | Path) -> Path:
 def build_daily_markdown(signals: DailySignals, output_dir: str | Path) -> Path:
     out_dir = ensure_dir(output_dir)
     brief = build_morning_brief(signals)
+    changes = build_change_summary(signals)
     notes = build_structural_notes(signals)
     sections = {
         "定位": "V4.1 是只读晨报整合层，不预测收益，不是荐基工具，不提供买卖建议，不重新计算评分，不接新外部数据源。",
         "晨报摘要": brief,
+        "变化摘要": changes,
         "当前核心主线": _sheet(signals.core_themes),
         "次级扩散方向": _sheet(signals.secondary_themes),
         "拥挤风险": _sheet(signals.crowding_high),
