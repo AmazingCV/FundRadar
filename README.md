@@ -135,6 +135,7 @@ python scripts/run_v3_full.py --limit 800
 - `reports/v3/YYYY-MM-DD/`
 - `reports/v3_tracker/YYYY-MM/`
 - `reports/v4/YYYY-MM-DD/`
+- `reports/intraday/YYYY-MM-DD/`
 
 研究和历史验证输出归档在：
 
