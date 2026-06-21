@@ -3,17 +3,49 @@
 
 这是一个用于“发现基金和板块信息差”的 Python 工程。它不会预测哪只基金一定上涨，也不是荐基工具；它的目标是把大量公募基金压缩成可复盘的观察池，并用历史时点模拟和回测验证规则是否有信息价值。
 
+## 项目定位
+
+FundRadar 是一个公募基金观察池与主线识别系统，不提供买卖建议，不预测哪只基金一定上涨，也不把涨幅榜包装成荐基工具。它的核心用途是：
+
+- 从全市场主动权益基金中压缩出少量观察池；
+- 识别可能正在形成或扩散的市场主线；
+- 记录每期扫描、持仓、主题和风险提示；
+- 用历史时点模拟和回测检查规则是否有信息价值。
+
 ## 功能
 
-- 指定基金阶段收益对比：近1周、近1月、近3月、近6月、近1年、近3年，输出排序、图表和 Excel。
-- 全市场主动权益基金扫描：过滤非主动权益品种，计算收益、回撤、波动率、加速分、综合分、热度提示。
-- 分散观察池：保留纯评分精选池的同时，额外生成同基金公司/基金经理重复暴露更低的辅助观察池。
-- 持仓归因和主题识别：抓取精选观察池重仓股，按 `config/theme_keywords.yaml` 识别主线。
-- 连续跟踪快照：保存每次观察池、主题、持仓，并和上一次快照比较。
-- 历史月度回测：每个月末只用当时以前的数据选 TopN，再验证未来 3/6/12 月收益。
-- 时间机器验证：站在过去某一天生成观察池，再用之后真实数据验证未来 1/3/6/12 月表现。
-- 权重搜索与留出验证：用 2023-2025-06-18 调参，用之后区间验证，标记疑似过拟合规则。
-- V1.1 短期异动雷达：作为新增观察层，发现近几日/近1周/近1月突然变强的基金、新星基金和短期主题扩散，不改变 V1 精选观察池、分散观察池和主线判断逻辑。
+### V1 中线雷达
+
+- 全市场主动权益基金扫描；
+- 精选观察池；
+- 分散观察池；
+- 用户观察池表现；
+- 持仓归因；
+- 主题统计；
+- 主线预警；
+- 时间机器；
+- 历史回测；
+- 权重搜索。
+
+V1 是当前主系统，适合做中线趋势观察和复盘。
+
+### V1.1 短期异动雷达
+
+- 短期异动总榜；
+- 近1周强势榜；
+- 短期强但未极热榜；
+- 主题异动榜；
+- 短期权重搜索。
+
+V1.1 只作为短期观察层，用来发现“谁开始冒头”，不能作为买入信号。
+
+### V2-lite 验证层
+
+- 新星基金验证；
+- 生命周期验证；
+- 资金迁移验证。
+
+V2-lite 当前结论是：有解释价值，但没有稳定预测能力。它只保留验证报告和验证脚本，不继续产品化完整 V2。
 
 ## 安装
 
@@ -27,24 +59,40 @@ pip install -r requirements.txt
 
 ## 常用命令
 
+日常最常用：
+
 ```bash
-python scripts/run_stage_return_compare.py
-python scripts/run_market_scan.py
-python scripts/run_backtest.py
-python scripts/run_weight_search.py
+python scripts/run_market_scan.py --limit 800
 python scripts/run_tracking.py
-python scripts/run_time_machine.py --as-of 2025-06-18 --horizon 1m,3m,6m,12m --top-n 10
-python scripts/run_short_term_radar.py --limit 800
-python scripts/run_short_term_weight_search.py
-python scripts/run_full_pipeline.py
 ```
 
-也可以使用模块 CLI：
+短期观察：
 
 ```bash
-PYTHONPATH=src python -m fund_radar market-scan --limit 800
-PYTHONPATH=src python -m fund_radar time-machine --as-of 2025-06-18 --horizon 1m,3m,6m,12m
+python scripts/run_short_term_radar.py --limit 800
 ```
+
+历史时点验证：
+
+```bash
+python scripts/run_time_machine.py --as-of 2025-06-18 --horizon 1m,3m,6m,12m --top-n 10 --limit 800
+```
+
+V2-lite 验证：
+
+```bash
+python scripts/run_v2_lite_validation.py --limit 800
+```
+
+其他研究命令包括 `run_stage_return_compare.py`、`run_backtest.py`、`run_weight_search.py`、`run_short_term_weight_search.py` 和 `run_full_pipeline.py`。
+
+## 推荐使用方式
+
+- 每周或每月运行一次 `market_scan + tracking`；
+- 重点看精选观察池、分散观察池、主线预警表和主题统计；
+- 短期异动雷达只看近期谁开始冒头，不作为买入信号；
+- V2-lite 只作为研究验证和解释层，不作为交易系统；
+- 每次结论都要结合回撤、热度、主题拥挤度和历史验证结果。
 
 ## 输出
 
@@ -55,6 +103,7 @@ PYTHONPATH=src python -m fund_radar time-machine --as-of 2025-06-18 --horizon 1m
 - `reports/time_machine/<历史日期>/历史时点分析报告.md`
 - `reports/<日期>/短期异动雷达.xlsx`
 - `reports/short_term_weight_search/短期权重搜索结果.xlsx`
+- `reports/v2_lite/<日期>/V2验证报告.xlsx`
 - `reports/backtest/<区间>/基金雷达历史回测结果.xlsx`
 - `reports/weight_search/<区间>/权重搜索结果.xlsx`
 - `data/cache/` 保存接口缓存，`data/snapshots/` 保存连续跟踪快照。
