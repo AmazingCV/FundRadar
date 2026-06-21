@@ -168,3 +168,45 @@ python scripts/run_daily_all.py --report-only
 ```
 
 默认情况下，如果某一步已完成、输出存在且最新净值日期未变化，daily runner 会跳过该步骤。`--force` 会完整重跑指定步骤或全部步骤，属于昂贵操作，通常只建议在夜间或明确需要刷新缓存时使用。
+
+## Windows 自动运行
+
+可以使用 Windows Task Scheduler 每天自动运行 FundRadar。默认日常任务不加 `--force`，会使用 step-level run guard 跳过已完成步骤。
+
+手动日常运行：
+
+```powershell
+python scripts/run_daily_all.py --limit 800
+```
+
+查看状态：
+
+```powershell
+python scripts/run_daily_all.py --status
+```
+
+只重建日报：
+
+```powershell
+python scripts/run_daily_all.py --report-only
+```
+
+注册每日自动运行任务，默认建议 23:30：
+
+```powershell
+.\scripts\register_fundradar_daily_task.ps1 -Time "23:30"
+```
+
+检查任务状态：
+
+```powershell
+.\scripts\check_fundradar_daily_task.ps1
+```
+
+删除任务：
+
+```powershell
+.\scripts\unregister_fundradar_daily_task.ps1
+```
+
+运行日志保存在 `logs/daily_runner/`。不要每天使用 `--force`，它会完整重跑 `market_scan`，可能耗时很久。
