@@ -1,0 +1,121 @@
+project:
+  name: fund_radar
+  timezone: Asia/Shanghai
+  output_root: reports
+  cache_root: data/cache
+  log_root: data/reports
+
+data:
+  # full: try all active-equity funds; top_ranked: prefilter by AKShare rank table for speed.
+  market_mode: top_ranked
+  candidate_limit: 800
+  min_history_days: 120
+  request_sleep_seconds: 0.25
+  retry_times: 3
+  cache_expire_days: 3
+  use_accum_nav: true
+
+fund_filter:
+  include_types:
+    - 股票型
+    - 混合型
+  exclude_keywords:
+    - 货币
+    - 债券
+    - 指数
+    - ETF
+    - 联接
+    - QDII
+    - FOF
+    - 养老
+    - REIT
+    - 商品
+    - 黄金
+    - 原油
+    - 纳斯达克
+    - 标普
+    - 港股通
+    - 恒生
+  dedupe_ac: true
+
+periods:
+  近1周: 7
+  近1月: 30
+  近3月: 91
+  近6月: 182
+  近1年: 365
+  近3年: 1095
+
+scoring:
+  weights:
+    近1月收益率%: 0.20
+    近3月收益率%: 0.30
+    近6月收益率%: 0.25
+    近1年收益率%: 0.15
+    近1年最大回撤%: 0.10
+  acceleration_weight: 0.10
+  overheat_penalty: true
+  overheat_thresholds:
+    warm: 60
+    hot: 100
+    extreme: 150
+  top_n:
+    practical: 10
+    selected: 5
+    diversified: 5
+  diversification:
+    source_top_n: 10
+    max_per_company: 2
+    max_per_manager: 2
+
+backtest:
+  start: "2023-01-01"
+  end: null
+  top_n: 10
+  scan_frequency: month_end
+  horizons:
+    3月: 91
+    6月: 182
+    12月: 365
+  benchmark_fund_codes: []
+
+time_machine:
+  default_as_of_dates:
+    - "2025-06-18"
+    - "2025-09-30"
+    - "2025-12-31"
+    - "2026-01-31"
+    - "2026-03-31"
+  horizons:
+    1月: 30
+    3月: 91
+    6月: 182
+    12月: 365
+
+reports:
+  chart_dpi: 160
+  font_family:
+    - Microsoft YaHei
+    - SimHei
+    - Noto Sans CJK SC
+
+short_term_radar:
+  top_n: 50
+  verification_periods: 12
+  score_weights:
+    近1周排名分: 0.35
+    近1月排名分: 0.25
+    排名提升分: 0.20
+    加速分: 0.10
+    未过热奖励: 0.10
+  penalties:
+    one_year_hot_150: 8
+    one_year_hot_250: 15
+    three_month_hot_100: 8
+    drawdown_30: 5
+    drawdown_45: 10
+  new_star:
+    max_one_year_return: 150
+    max_three_month_return: 100
+    min_three_month_return: 10
+  theme_top_n: 50
