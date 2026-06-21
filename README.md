@@ -147,3 +147,24 @@ python scripts/run_v3_full.py --limit 800
 - 强势和偏热经常同时出现。系统会提示过热、回撤和拥挤风险，不把涨幅榜直接当成买入清单。
 - 精选观察池反映最强信号，可能高度集中；分散观察池只用于降低重复暴露，便于人工观察，不替代精选观察池。
 - V1 精选观察池更适合中线趋势观察；短期异动雷达更适合发现近期刚变强的基金，但短期榜单波动更大、误报更多，不能直接当成买入推荐。
+
+## V4.2 Daily Runner
+
+日常运行请优先使用统一入口，不再手动分别执行旧脚本：
+
+```bash
+python scripts/run_daily_all.py --limit 800
+```
+
+该入口会按步骤调度 `market_scan`、`short_term_radar`、`v3_full`、`v3_tracker`、`v4_full` 和 `daily_report`。每一步都会输出 `[START]`、`[DONE]`、`[SKIP]` 或 `[FAIL]` 以及耗时，并在 `reports/daily/YYYY-MM-DD/run_guard.json` 中记录 step-level 状态。
+
+常用命令：
+
+```bash
+python scripts/run_daily_all.py --status
+python scripts/run_daily_all.py --step daily_report
+python scripts/run_daily_all.py --step market_scan --force
+python scripts/run_daily_all.py --report-only
+```
+
+默认情况下，如果某一步已完成、输出存在且最新净值日期未变化，daily runner 会跳过该步骤。`--force` 会完整重跑指定步骤或全部步骤，属于昂贵操作，通常只建议在夜间或明确需要刷新缓存时使用。

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..utils import normalize_code
+from .display_utils import FUND_CODE_COL, FUND_NAME_COL, deduplicate_fund_display
 from .signal_aggregator import DailySignals
 
 
@@ -27,12 +27,13 @@ def _theme_list(df: pd.DataFrame, n: int = 5) -> str:
 def _fund_list(df: pd.DataFrame, n: int = 5) -> str:
     if df.empty:
         return "暂无"
-    name_col = "基金名称" if "基金名称" in df.columns else None
-    code_col = "基金代码" if "基金代码" in df.columns else None
+    display = deduplicate_fund_display(df)
+    name_col = FUND_NAME_COL if FUND_NAME_COL in display.columns else None
+    code_col = FUND_CODE_COL if FUND_CODE_COL in display.columns else None
     rows = []
-    for _, row in df.head(n).iterrows():
+    for _, row in display.head(n).iterrows():
         name = str(row.get(name_col, "")) if name_col else ""
-        code = normalize_code(row.get(code_col, "")) if code_col else ""
+        code = str(row.get(code_col, "")) if code_col else ""
         label = f"{code} {name}".strip()
         if label:
             rows.append(label)
@@ -69,5 +70,6 @@ def build_structural_notes(signals: DailySignals) -> pd.DataFrame:
         notes.append({"事项": "轮动证据", "说明": str(signals.rotation["说明"].dropna().iloc[0]) if not signals.rotation["说明"].dropna().empty else "暂无明确轮动路径"})
     else:
         notes.append({"事项": "轮动证据", "说明": "存在 V4 输出的主题暴露迁移路径，需人工复核"})
+    notes.append({"事项": "日报展示去重", "说明": "日报展示层已对 A/C 等不同份额做合并展示，底层原始报告仍保留全部份额。"})
     notes.append({"事项": "数据口径", "说明": "全部来自已有 V1/V1.1/V2-lite/V3/V3_tracker/V4 报告；不重新计算评分；不接新数据源"})
     return pd.DataFrame(notes)
