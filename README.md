@@ -47,6 +47,24 @@ V1.1 只作为短期观察层，用来发现“谁开始冒头”，不能作为
 
 V2-lite 当前结论是：有解释价值，但没有稳定预测能力。它只保留验证报告和验证脚本，不继续产品化完整 V2。
 
+### V3 资金决策辅助层
+
+V3 建立在 V1、V1.1、V2-lite 之上，只读使用已有观察信号，不改动上游逻辑。V3 不是预测系统：
+
+- 不预测涨跌；
+- 不推荐股票或基金；
+- 不做未来收益预测。
+
+V3 做的是资金管理辅助：
+
+- 资金怎么分；
+- 什么时候分批买；
+- 什么时候止盈或退出；
+- 什么时候观察主线轮动；
+- 风险怎么控。
+
+当前 V3 包含仓位分配、DCA 定投计划、止盈退出计划、轮动信号、风险控制和简单回测。
+
 ## 安装
 
 当前目录是项目根目录。建议使用 Python 3.10+：
@@ -84,6 +102,12 @@ V2-lite 验证：
 python scripts/run_v2_lite_validation.py --limit 800
 ```
 
+V3 资金决策辅助：
+
+```bash
+python scripts/run_v3_full.py --limit 800
+```
+
 其他研究命令包括 `run_stage_return_compare.py`、`run_backtest.py`、`run_weight_search.py`、`run_short_term_weight_search.py` 和 `run_full_pipeline.py`。
 
 ## 推荐使用方式
@@ -92,6 +116,7 @@ python scripts/run_v2_lite_validation.py --limit 800
 - 重点看精选观察池、分散观察池、主线预警表和主题统计；
 - 短期异动雷达只看近期谁开始冒头，不作为买入信号；
 - V2-lite 只作为研究验证和解释层，不作为交易系统；
+- V3 只把观察池信号转成仓位、定投、止盈、轮动和风险控制计划，不预测未来收益；
 - 每次结论都要结合回撤、热度、主题拥挤度和历史验证结果。
 
 ## 输出
@@ -104,6 +129,12 @@ python scripts/run_v2_lite_validation.py --limit 800
 - `reports/<日期>/短期异动雷达.xlsx`
 - `reports/short_term_weight_search/短期权重搜索结果.xlsx`
 - `reports/v2_lite/<日期>/V2验证报告.xlsx`
+- `reports/v3/<日期>/portfolio_allocation.xlsx`
+- `reports/v3/<日期>/dca_plan.xlsx`
+- `reports/v3/<日期>/exit_plan.xlsx`
+- `reports/v3/<日期>/rotation_signal.xlsx`
+- `reports/v3/<日期>/V3_backtest.xlsx`
+- `reports/v3/<日期>/v3_summary.md`
 - `reports/backtest/<区间>/基金雷达历史回测结果.xlsx`
 - `reports/weight_search/<区间>/权重搜索结果.xlsx`
 - `data/cache/` 保存接口缓存，`data/snapshots/` 保存连续跟踪快照。
