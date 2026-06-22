@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, time
+from contextlib import contextmanager
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,10 +12,21 @@ from openpyxl import load_workbook
 
 from .report import write_excel, write_markdown
 from .utils import ensure_dir, load_yaml, normalize_code, project_path, today_str
+from .v4_1.display_utils import deduplicate_fund_display
 from .v4_1.signal_aggregator import aggregate_daily_signals
 
 
-DEFAULT_CATEGORIES = ["股票型", "混合型"]
+DEFAULT_CATEGORIES = ["全部"]
+PROXY_ENV_NAMES = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"]
+THEME_PROXY_RULES: list[tuple[str, list[str]]] = [
+    ("证券/券商/金融", ["证券", "券商", "金融", "银行", "非银", "保险"]),
+    ("煤炭/资源/周期", ["煤炭", "能源", "资源", "有色", "矿业", "周期", "油气", "石油"]),
+    ("科技/AI/半导体", ["科技", "半导体", "芯片", "人工智能", "通信", "算力", "电子", "机器人", "软件", "互联网", "计算机"]),
+    ("新能源/电力设备", ["新能源", "光伏", "储能", "电池", "电力", "电网", "低碳", "碳中和"]),
+    ("医药/创新药", ["医药", "医疗", "创新药", "生物", "健康", "中药"]),
+    ("消费", ["消费", "食品", "饮料", "白酒", "家电", "农业"]),
+    ("港股/出海", ["港股", "沪港深", "出海", "海外", "全球"]),
+]
 
 
 @dataclass
@@ -71,6 +84,28 @@ def _normalize_estimation(raw: pd.DataFrame, category: str, fetched_at: str) -> 
     return out.drop_duplicates("基金代码").reset_index(drop=True)
 
 
+def _is_blocking_local_proxy(value: str | None) -> bool:
+    return bool(value and "127.0.0.1:9" in str(value))
+
+
+@contextmanager
+def _temporary_disable_blocking_proxy():
+    old = {name: os.environ.get(name) for name in PROXY_ENV_NAMES}
+    changed = False
+    for name, value in old.items():
+        if _is_blocking_local_proxy(value):
+            os.environ.pop(name, None)
+            changed = True
+    try:
+        yield changed
+    finally:
+        for name, value in old.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
 def fetch_intraday_estimation(categories: list[str] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     categories = categories or DEFAULT_CATEGORIES
     fetched_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -81,13 +116,23 @@ def fetch_intraday_estimation(categories: list[str] | None = None) -> tuple[pd.D
     except Exception as exc:  # noqa: BLE001
         return pd.DataFrame(), pd.DataFrame([{"分类": "全部", "错误": f"akshare import failed: {exc}", "抓取时间": fetched_at}])
 
-    for category in categories:
-        try:
-            raw = ak.fund_value_estimation_em(symbol=category)
-            norm = _normalize_estimation(raw, category, fetched_at)
-            rows.append(norm)
-        except Exception as exc:  # noqa: BLE001 - public intraday endpoint can be unstable.
-            failures.append({"分类": category, "错误": str(exc), "抓取时间": fetched_at})
+    with _temporary_disable_blocking_proxy() as proxy_disabled:
+        for category in categories:
+            try:
+                raw = ak.fund_value_estimation_em(symbol=category)
+                norm = _normalize_estimation(raw, category, fetched_at)
+                if proxy_disabled and not norm.empty:
+                    norm["代理处理"] = "已临时绕过 127.0.0.1:9 占位代理"
+                rows.append(norm)
+            except Exception as exc:  # noqa: BLE001 - public intraday endpoint can be unstable.
+                failures.append(
+                    {
+                        "分类": category,
+                        "错误": str(exc),
+                        "抓取时间": fetched_at,
+                        "代理处理": "已临时绕过 127.0.0.1:9 占位代理" if proxy_disabled else "未检测到占位代理",
+                    }
+                )
     data = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
     if not data.empty:
         data = data.drop_duplicates("基金代码").reset_index(drop=True)
@@ -185,6 +230,165 @@ def _build_alerts(focus: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows) if rows else pd.DataFrame([{"说明": "观察池暂无明显盘中异动"}])
 
 
+def _build_market_temperature(estimation: pd.DataFrame) -> pd.DataFrame:
+    if estimation.empty or "估算涨跌幅%" not in estimation.columns:
+        return pd.DataFrame([{"项目": "市场温度", "结果": "暂无盘中估值数据", "说明": ""}])
+    pct = pd.to_numeric(estimation["估算涨跌幅%"], errors="coerce").dropna()
+    if pct.empty:
+        return pd.DataFrame([{"项目": "市场温度", "结果": "估算涨跌幅缺失", "说明": ""}])
+    up_ratio = float((pct > 0).mean() * 100)
+    down_ratio = float((pct < 0).mean() * 100)
+    strong_ratio = float((pct >= 2).mean() * 100)
+    weak_ratio = float((pct <= -2).mean() * 100)
+    median = float(pct.median())
+    if median >= 0.5 and up_ratio >= 60:
+        label = "偏强"
+    elif median <= -0.5 and down_ratio >= 60:
+        label = "偏弱"
+    else:
+        label = "分化/震荡"
+    return pd.DataFrame(
+        [
+            {"项目": "市场温度", "结果": label, "说明": "基于全市场基金盘中估算涨跌幅统计，不代表最终净值"},
+            {"项目": "样本数量", "结果": len(pct), "说明": ""},
+            {"项目": "平均估算涨跌幅%", "结果": round(float(pct.mean()), 2), "说明": ""},
+            {"项目": "中位数估算涨跌幅%", "结果": round(median, 2), "说明": ""},
+            {"项目": "上涨基金占比%", "结果": round(up_ratio, 1), "说明": ""},
+            {"项目": "下跌基金占比%", "结果": round(down_ratio, 1), "说明": ""},
+            {"项目": "估算涨幅>=2%占比%", "结果": round(strong_ratio, 1), "说明": ""},
+            {"项目": "估算跌幅<=-2%占比%", "结果": round(weak_ratio, 1), "说明": ""},
+            {"项目": "最高估算涨跌幅%", "结果": round(float(pct.max()), 2), "说明": ""},
+            {"项目": "最低估算涨跌幅%", "结果": round(float(pct.min()), 2), "说明": ""},
+        ]
+    )
+
+
+def _representative_funds(df: pd.DataFrame, limit: int = 5) -> str:
+    if df.empty:
+        return ""
+    shown = deduplicate_fund_display(df.head(max(limit * 3, limit))).head(limit)
+    items: list[str] = []
+    for _, row in shown.iterrows():
+        code = normalize_code(row.get("基金代码", ""))
+        name = str(row.get("基金名称", "")).strip()
+        pct = _to_number(row.get("估算涨跌幅%"))
+        if pct is None:
+            items.append(f"{code} {name}")
+        else:
+            items.append(f"{code} {name}({pct:+.2f}%)")
+    return "；".join(items)
+
+
+def _build_theme_proxy(estimation: pd.DataFrame) -> pd.DataFrame:
+    if estimation.empty or "基金名称" not in estimation.columns or "估算涨跌幅%" not in estimation.columns:
+        return pd.DataFrame([{"说明": "暂无盘中估值数据，无法生成主题代理热度"}])
+    rows: list[dict[str, Any]] = []
+    for theme, keywords in THEME_PROXY_RULES:
+        pattern = "|".join(keywords)
+        sub = estimation[estimation["基金名称"].astype(str).str.contains(pattern, regex=True, na=False)].copy()
+        sub["估算涨跌幅%"] = pd.to_numeric(sub["估算涨跌幅%"], errors="coerce")
+        sub = sub.dropna(subset=["估算涨跌幅%"])
+        if sub.empty:
+            continue
+        top = sub.sort_values("估算涨跌幅%", ascending=False)
+        rows.append(
+            {
+                "主题代理": theme,
+                "匹配基金数": len(sub),
+                "平均估算涨跌幅%": round(float(sub["估算涨跌幅%"].mean()), 2),
+                "中位数估算涨跌幅%": round(float(sub["估算涨跌幅%"].median()), 2),
+                "上涨占比%": round(float((sub["估算涨跌幅%"] > 0).mean() * 100), 1),
+                "强势基金数(>=2%)": int((sub["估算涨跌幅%"] >= 2).sum()),
+                "弱势基金数(<=-1%)": int((sub["估算涨跌幅%"] <= -1).sum()),
+                "代表基金": _representative_funds(top, limit=5),
+                "口径": "基金名称关键词代理，不等同真实持仓主题或行业资金流",
+            }
+        )
+    if not rows:
+        return pd.DataFrame([{"说明": "未匹配到可用主题代理"}])
+    return pd.DataFrame(rows).sort_values(["平均估算涨跌幅%", "上涨占比%"], ascending=False).reset_index(drop=True)
+
+
+def _build_focus_source_summary(focus: pd.DataFrame) -> pd.DataFrame:
+    if focus.empty or "来源" not in focus.columns or "估算涨跌幅%" not in focus.columns:
+        return pd.DataFrame([{"说明": "暂无观察池盘中估值数据"}])
+    rows: list[dict[str, Any]] = []
+    for source in ["V1精选观察池", "V1分散观察池", "V3组合", "V1.1短期异动", "V1.1新星", "用户观察池"]:
+        sub = focus[focus["来源"].astype(str).str.contains(source, regex=False, na=False)].copy()
+        sub["估算涨跌幅%"] = pd.to_numeric(sub["估算涨跌幅%"], errors="coerce")
+        sub = sub.dropna(subset=["估算涨跌幅%"])
+        if sub.empty:
+            continue
+        rows.append(
+            {
+                "观察范围": source,
+                "匹配基金数": len(sub),
+                "平均估算涨跌幅%": round(float(sub["估算涨跌幅%"].mean()), 2),
+                "中位数估算涨跌幅%": round(float(sub["估算涨跌幅%"].median()), 2),
+                "上涨占比%": round(float((sub["估算涨跌幅%"] > 0).mean() * 100), 1),
+                "涨幅靠前": _representative_funds(sub.sort_values("估算涨跌幅%", ascending=False), limit=3),
+                "跌幅靠前": _representative_funds(sub.sort_values("估算涨跌幅%", ascending=True), limit=3),
+            }
+        )
+    return pd.DataFrame(rows) if rows else pd.DataFrame([{"说明": "暂无观察池盘中估值数据"}])
+
+
+def _build_intraday_brief(
+    market_temperature: pd.DataFrame,
+    theme_proxy: pd.DataFrame,
+    focus: pd.DataFrame,
+    failures: pd.DataFrame,
+) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    if not market_temperature.empty:
+        first = market_temperature.iloc[0]
+        rows.append({"类型": "市场温度", "摘要": f"{first.get('结果', '')}", "口径": first.get("说明", "")})
+    if not theme_proxy.empty and "主题代理" in theme_proxy.columns:
+        top_theme = theme_proxy.iloc[0]
+        rows.append(
+            {
+                "类型": "盘中较强方向",
+                "摘要": f"{top_theme.get('主题代理', '')}，平均估算涨跌幅 {top_theme.get('平均估算涨跌幅%', '')}%",
+                "口径": "基金名称关键词代理，不等同真实行业资金流",
+            }
+        )
+        weak = theme_proxy.sort_values("平均估算涨跌幅%", ascending=True).iloc[0]
+        rows.append(
+            {
+                "类型": "盘中较弱方向",
+                "摘要": f"{weak.get('主题代理', '')}，平均估算涨跌幅 {weak.get('平均估算涨跌幅%', '')}%",
+                "口径": "基金名称关键词代理",
+            }
+        )
+    valid_focus = focus.copy()
+    if not valid_focus.empty:
+        valid_focus["估算涨跌幅%"] = pd.to_numeric(valid_focus.get("估算涨跌幅%"), errors="coerce")
+        valid_focus = valid_focus.dropna(subset=["估算涨跌幅%"])
+    if not valid_focus.empty:
+        rows.append(
+            {
+                "类型": "观察池涨幅靠前",
+                "摘要": _representative_funds(valid_focus.sort_values("估算涨跌幅%", ascending=False), limit=5),
+                "口径": "来自 V1/V1.1/V3/用户观察池交集",
+            }
+        )
+        rows.append(
+            {
+                "类型": "观察池跌幅靠前",
+                "摘要": _representative_funds(valid_focus.sort_values("估算涨跌幅%", ascending=True), limit=5),
+                "口径": "来自 V1/V1.1/V3/用户观察池交集",
+            }
+        )
+    rows.append(
+        {
+            "类型": "接口状态",
+            "摘要": "正常" if failures.empty else f"{len(failures)} 个分类抓取失败",
+            "口径": "失败分类不影响已抓取数据",
+        }
+    )
+    return pd.DataFrame(rows)
+
+
 def _format_code_columns_as_text(path: Path) -> None:
     wb = load_workbook(path)
     for ws in wb.worksheets:
@@ -211,6 +415,11 @@ def run_intraday_estimation(
     universe = build_watch_universe(date_text)
     focus = _merge_focus(estimation, universe)
     alerts = _build_alerts(focus)
+    market_temperature = _build_market_temperature(estimation)
+    theme_proxy = _build_theme_proxy(estimation)
+    focus_source_summary = _build_focus_source_summary(focus)
+    intraday_brief = _build_intraday_brief(market_temperature, theme_proxy, focus, failures)
+    focus_display = deduplicate_fund_display(focus).head(top_n) if not focus.empty else pd.DataFrame()
 
     if not estimation.empty:
         top_up = estimation.sort_values("估算涨跌幅%", ascending=False, na_position="last").head(top_n).reset_index(drop=True)
@@ -232,6 +441,10 @@ def run_intraday_estimation(
 
     sheets = {
         "盘中摘要": summary,
+        "盘中变化摘要": intraday_brief,
+        "市场温度": market_temperature,
+        "主题代理热度": theme_proxy,
+        "观察池来源表现": focus_source_summary,
         "观察池盘中估值": focus,
         "盘中观察提示": alerts,
         "估算涨幅Top": top_up,
@@ -255,7 +468,11 @@ def run_intraday_estimation(
         {
             "定位": "只读盘中观察层。估算净值不是最终净值，不预测收益，不提供买卖建议。",
             "盘中摘要": summary,
-            "观察池盘中估值Top": focus.head(top_n) if not focus.empty else pd.DataFrame([{"说明": "暂无观察池估值数据"}]),
+            "盘中变化摘要": intraday_brief,
+            "市场温度": market_temperature,
+            "主题代理热度": theme_proxy.head(10) if "主题代理" in theme_proxy.columns else theme_proxy,
+            "观察池来源表现": focus_source_summary,
+            "观察池盘中估值Top": focus_display if not focus_display.empty else pd.DataFrame([{"说明": "暂无观察池估值数据"}]),
             "盘中观察提示": alerts,
             "接口失败记录": failures if not failures.empty else pd.DataFrame([{"说明": "接口正常或未发现失败"}]),
         },
