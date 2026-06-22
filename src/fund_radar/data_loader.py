@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -94,7 +95,16 @@ class DataLoader:
         path = project_path(self.cache_root, "nav", f"{code}.csv")
         ensure_dir(path.parent)
         if not force and path.exists():
-            return self._normalize_nav(self._read_csv(path), code)
+            cached = self._normalize_nav(self._read_csv(path), code)
+            target_date = os.environ.get("FUND_RADAR_NAV_TARGET_DATE")
+            if target_date and not cached.empty:
+                date_col = first_existing(cached.columns, ["净值日期", "鍑€鍊兼棩鏈?"])
+                latest_cached = pd.to_datetime(cached[date_col], errors="coerce").max() if date_col else pd.NaT
+                target_dt = pd.to_datetime(target_date, errors="coerce")
+                if pd.notna(latest_cached) and pd.notna(target_dt) and latest_cached >= target_dt:
+                    return cached
+            elif not target_date:
+                return cached
 
         ak = self._ak()
 

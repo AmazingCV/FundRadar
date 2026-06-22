@@ -1,5 +1,5 @@
 param(
-    [string]$Time = "23:30"
+    [string]$Time = "21:00"
 )
 
 $ErrorActionPreference = "Stop"

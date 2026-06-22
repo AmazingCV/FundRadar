@@ -139,7 +139,14 @@ def compute_feature_table(
     rows = []
     failures = []
     min_days = int(config.get("data", {}).get("min_history_days", 120))
-    for _, fund in pool.iterrows():
+    iterator = pool.iterrows()
+    try:
+        from tqdm import tqdm
+
+        iterator = tqdm(iterator, total=len(pool), desc="market_scan nav", unit="fund")
+    except Exception:
+        logger.info("market_scan nav progress: %s funds", len(pool))
+    for _, fund in iterator:
         code = normalize_code(fund["基金代码"])
         try:
             nav = loader.fetch_nav(code)

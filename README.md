@@ -184,6 +184,8 @@ python scripts/run_daily_all.py --report-only
 python scripts/run_daily_all.py --limit 800
 ```
 
+Daily runner 会先探测最新可用净值日期，并按“净值日期”写入报告目录。例如 2026-06-23 晚上获取到 2026-06-22 的正式净值，则日报写入 `reports/daily/2026-06-22/`。`--limit 30` 适合临时验收，正式日常运行仍建议使用 `--limit 800`。
+
 查看状态：
 
 ```powershell
@@ -196,10 +198,10 @@ python scripts/run_daily_all.py --status
 python scripts/run_daily_all.py --report-only
 ```
 
-注册每日自动运行任务，默认建议 23:30：
+注册每日自动运行任务，默认建议 21:00：
 
 ```powershell
-.\scripts\register_fundradar_daily_task.ps1 -Time "23:30"
+.\scripts\register_fundradar_daily_task.ps1 -Time "21:00"
 ```
 
 检查任务状态：
